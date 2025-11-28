@@ -1,0 +1,53 @@
+image: python:3.11
+
+stages:
+  - lint
+  - test
+  - build
+
+variables:
+  COVERAGE_MINIMUM: "50"
+
+before_script:
+  - pip install -r requirements.txt
+
+lint:
+  stage: lint
+  script:
+    - flake8 src --max-line-length=120 | tee flake8.log
+  artifacts:
+    when: always
+    paths:
+      - flake8.log
+  allow_failure: false
+
+test:
+  stage: test
+  script:
+    - pytest --cov=src --cov-report=term --cov-report=xml --junitxml=junit.xml
+  artifacts:
+    paths:
+      - coverage.xml
+      - junit.xml
+    reports:
+      junit: junit.xml
+  after_script:
+    - |
+      COV=$(grep -oPm1 "(?<=line-rate=\")\d\.\d+" coverage.xml | awk '{print $1 * 100}')
+      echo "Coverage: $COV%"
+      if [ "${COV%.*}" -lt "$COVERAGE_MINIMUM" ]; then
+        echo "Coverage below $COVERAGE_MINIMUM%"
+        exit 1
+      fi
+
+build:
+  stage: build
+  script:
+    - echo "Packaging app..."
+    - mkdir build
+    - echo "Python build artifact" > build/artifact.txt
+  artifacts:
+    paths:
+      - build/
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
