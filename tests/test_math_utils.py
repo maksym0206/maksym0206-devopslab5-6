@@ -1,5 +1,6 @@
 import src.math_utils as m
 
+
 def test_add():
     assert m.add(2, 3) == 5
 
